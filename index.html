@@ -209,7 +209,11 @@
       fixturesGrid.addEventListener("click", (event) => {
         const button = event.target.closest(".run-analytics");
         if (!button) return;
-        const fixtureId = button.getAttribute("data-fixture-id");
+        const fixtureId = Number(button.getAttribute("data-fixture-id"));
+        if (!Number.isFinite(fixtureId) || fixtureId <= 0) {
+          setStatus("Unable to start analytics for this fixture.", "error");
+          return;
+        }
         setStatus(`Card analytics started for fixture #${fixtureId}.`);
       });
 
