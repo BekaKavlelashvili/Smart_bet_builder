@@ -86,6 +86,15 @@
         }
       }
 
+      function fixtureTime(dateValue) {
+        const date = new Date(dateValue);
+        if (Number.isNaN(date.getTime())) return "TBD";
+        return date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      }
+
       function showSkeletonCards(count = 6) {
         fixturesGrid.innerHTML = Array.from({ length: count })
           .map(
@@ -122,11 +131,8 @@
         const leagueName = escapeHtml(fixture.league.name);
         const homeLogo = safeLogoUrl(home.logo);
         const awayLogo = safeLogoUrl(away.logo);
-        const fixtureId = Number(fixture.fixture.id) || 0;
-        const time = new Date(fixture.fixture.date).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit"
-        });
+        const fixtureId = Number(fixture.fixture.id) || -1;
+        const time = fixtureTime(fixture.fixture.date);
 
         return `
           <article class="group rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900 to-slate-900/70 p-5 shadow-xl shadow-black/20 transition hover:border-brand-500/60">
