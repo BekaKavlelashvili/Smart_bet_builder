@@ -131,7 +131,7 @@
         const leagueName = escapeHtml(fixture.league.name);
         const homeLogo = safeLogoUrl(home.logo);
         const awayLogo = safeLogoUrl(away.logo);
-        const fixtureId = Number(fixture.fixture.id) || -1;
+        const fixtureId = Number(fixture.fixture.id) || 0;
         const time = fixtureTime(fixture.fixture.date);
 
         return `
