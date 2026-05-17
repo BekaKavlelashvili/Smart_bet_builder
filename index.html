@@ -36,7 +36,7 @@
 
     <script>
       const CONFIG = {
-        RAPID_API_KEY: "YOUR_API_KEY_HERE", // I will replace this with my actual key
+        RAPID_API_KEY: "YOUR_API_KEY_HERE", // Replace locally; do not commit a real key to version control
         DEFAULT_LEAGUE: 140 // La Liga league code
       };
 
@@ -132,11 +132,11 @@
             </div>
             <div class="space-y-3">
               <div class="flex items-center gap-3">
-                <img src="${homeLogo}" alt="${homeName} logo" class="h-9 w-9 rounded-full bg-slate-800 p-1 object-contain" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_LOGO}'" />
+                <img src="${homeLogo}" alt="${homeName} logo" class="team-logo h-9 w-9 rounded-full bg-slate-800 p-1 object-contain" loading="lazy" />
                 <span class="font-semibold">${homeName}</span>
               </div>
               <div class="flex items-center gap-3">
-                <img src="${awayLogo}" alt="${awayName} logo" class="h-9 w-9 rounded-full bg-slate-800 p-1 object-contain" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_LOGO}'" />
+                <img src="${awayLogo}" alt="${awayName} logo" class="team-logo h-9 w-9 rounded-full bg-slate-800 p-1 object-contain" loading="lazy" />
                 <span class="font-semibold">${awayName}</span>
               </div>
             </div>
@@ -149,6 +149,11 @@
 
       function renderFixtures(fixtures) {
         fixturesGrid.innerHTML = fixtures.map(fixtureCard).join("");
+        fixturesGrid.querySelectorAll(".team-logo").forEach((img) => {
+          img.addEventListener("error", () => {
+            img.src = FALLBACK_LOGO;
+          }, { once: true });
+        });
       }
 
       async function fetchTodayFixtures() {
