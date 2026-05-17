@@ -190,7 +190,10 @@
           }
 
           const data = await response.json();
-          const fixtures = (data.response || []).filter((item) => LIVE_OR_UPCOMING.has(item.fixture.status.short));
+          const fixtures = (data.response || []).filter((item) => {
+            const statusShort = item?.fixture?.status?.short;
+            return typeof statusShort === "string" && LIVE_OR_UPCOMING.has(statusShort);
+          });
 
           if (!fixtures.length) {
             fixturesGrid.innerHTML = "";
