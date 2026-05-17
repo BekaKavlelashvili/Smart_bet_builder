@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>One-Click Smart Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                500: "#7c3aed",
+                600: "#6d28d9"
+              }
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <header class="mb-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur">
+        <p class="text-xs uppercase tracking-[0.2em] text-brand-500">Smart Bet Builder</p>
+        <h1 class="mt-2 text-2xl font-bold sm:text-3xl">One-Click Smart Dashboard</h1>
+        <p class="mt-2 text-sm text-slate-400 sm:text-base">Live and upcoming football fixtures for today. No setup, just open and analyze.</p>
+      </header>
+
+      <section aria-live="polite" id="statusMessage" class="mb-6 hidden rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm"></section>
+
+      <section id="fixturesGrid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"></section>
+    </main>
+
+    <script>
+      const CONFIG = {
+        RAPID_API_KEY: "YOUR_API_KEY_HERE", // Replace locally; do not commit a real key to version control
+        DEFAULT_LEAGUE: 140 // La Liga league code
+      };
+
+      const API_HOST = "v3.football.api-sports.io";
+      const fixturesGrid = document.getElementById("fixturesGrid");
+      const statusMessage = document.getElementById("statusMessage");
+      const FALLBACK_LOGO =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='24' fill='%231e293b'/%3E%3Cpath d='M24 13l9 4v6c0 6-4 10.5-9 12-5-1.5-9-6-9-12v-6l9-4z' fill='%2364758b'/%3E%3C/svg%3E";
+
+      const LIVE_OR_UPCOMING = new Set([
+        "NS",
+        "TBD",
+        "PST",
+        "1H",
+        "HT",
+        "2H",
+        "ET",
+        "BT",
+        "P",
+        "INT",
+        "LIVE"
+      ]);
+
+      function todayDate() {
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function safeLogoUrl(url) {
+        try {
+          const parsed = new URL(url);
+          return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : FALLBACK_LOGO;
+        } catch {
+          return FALLBACK_LOGO;
+        }
+      }
+
+      function fixtureTime(dateValue) {
+        const date = new Date(dateValue);
+        if (Number.isNaN(date.getTime())) return "TBD";
+        return date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      }
+
+      function showSkeletonCards(count = 6) {
+        fixturesGrid.innerHTML = Array.from({ length: count })
+          .map(
+            () => `
+            <article class="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+              <div class="mb-4 h-4 w-36 rounded bg-slate-800"></div>
+              <div class="space-y-3">
+                <div class="h-10 rounded bg-slate-800"></div>
+                <div class="h-10 rounded bg-slate-800"></div>
+              </div>
+              <div class="mt-5 h-11 rounded-xl bg-slate-800"></div>
+            </article>
+          `
+          )
+          .join("");
+      }
+
+      function setStatus(message, type = "info") {
+        statusMessage.classList.remove("hidden", "border-emerald-700", "text-emerald-300", "border-red-700", "text-red-300");
+        statusMessage.classList.add(type === "error" ? "border-red-700" : "border-emerald-700");
+        statusMessage.classList.add(type === "error" ? "text-red-300" : "text-emerald-300");
+        statusMessage.textContent = message;
+      }
+
+      function clearStatus() {
+        statusMessage.classList.add("hidden");
+      }
+
+      function fixtureCard(fixture) {
+        const home = fixture.teams.home;
+        const away = fixture.teams.away;
+        const homeName = escapeHtml(home.name);
+        const awayName = escapeHtml(away.name);
+        const leagueName = escapeHtml(fixture.league.name);
+        const homeLogo = safeLogoUrl(home.logo);
+        const awayLogo = safeLogoUrl(away.logo);
+        const fixtureId = Number(fixture.fixture.id) || 0;
+        const time = fixtureTime(fixture.fixture.date);
+
+        return `
+          <article class="group rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900 to-slate-900/70 p-5 shadow-xl shadow-black/20 transition hover:border-brand-500/60">
+            <div class="mb-4 flex items-center justify-between text-xs text-slate-400">
+              <span>${leagueName}</span>
+              <span>${time}</span>
+            </div>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
+                <img src="${homeLogo}" alt="${homeName} logo" class="team-logo h-9 w-9 rounded-full bg-slate-800 p-1 object-contain" loading="lazy" />
+                <span class="font-semibold">${homeName}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <img src="${awayLogo}" alt="${awayName} logo" class="team-logo h-9 w-9 rounded-full bg-slate-800 p-1 object-contain" loading="lazy" />
+                <span class="font-semibold">${awayName}</span>
+              </div>
+            </div>
+            <button data-fixture-id="${fixtureId}" class="run-analytics mt-5 w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-slate-950">
+              Run Card Analytics
+            </button>
+          </article>
+        `;
+      }
+
+      function renderFixtures(fixtures) {
+        fixturesGrid.innerHTML = fixtures.map(fixtureCard).join("");
+        fixturesGrid.querySelectorAll(".team-logo").forEach((img) => {
+          img.addEventListener("error", () => {
+            img.src = FALLBACK_LOGO;
+          }, { once: true });
+        });
+      }
+
+      async function fetchTodayFixtures() {
+        showSkeletonCards();
+        clearStatus();
+
+        if (!CONFIG.RAPID_API_KEY || CONFIG.RAPID_API_KEY === "YOUR_API_KEY_HERE") {
+          setStatus("Add your RapidAPI key in CONFIG.RAPID_API_KEY to load live fixture data.", "error");
+          fixturesGrid.innerHTML = "";
+          return;
+        }
+
+        const params = new URLSearchParams({
+          date: todayDate(),
+          league: String(CONFIG.DEFAULT_LEAGUE)
+        });
+
+        const endpoint = `https://${API_HOST}/fixtures?${params.toString()}`;
+
+        try {
+          const response = await fetch(endpoint, {
+            headers: {
+              "x-rapidapi-key": CONFIG.RAPID_API_KEY,
+              "x-rapidapi-host": API_HOST
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`API request failed (${response.status})`);
+          }
+
+          const data = await response.json();
+          const fixtures = (data.response || []).filter((item) => {
+            const statusShort = item?.fixture?.status?.short;
+            return typeof statusShort === "string" && LIVE_OR_UPCOMING.has(statusShort);
+          });
+
+          if (!fixtures.length) {
+            fixturesGrid.innerHTML = "";
+            setStatus("No live or upcoming matches found today for the configured league.");
+            return;
+          }
+
+          renderFixtures(fixtures);
+          setStatus(`Loaded ${fixtures.length} fixture${fixtures.length === 1 ? "" : "s"} for today.`);
+        } catch (error) {
+          fixturesGrid.innerHTML = "";
+          setStatus(`Could not load fixtures: ${error.message}`, "error");
+        }
+      }
+
+      fixturesGrid.addEventListener("click", (event) => {
+        const button = event.target.closest(".run-analytics");
+        if (!button) return;
+        const fixtureId = Number(button.getAttribute("data-fixture-id"));
+        if (!Number.isFinite(fixtureId) || fixtureId <= 0) {
+          setStatus("Unable to start analytics for this fixture.", "error");
+          return;
+        }
+        setStatus(`Card analytics started for fixture #${fixtureId}.`);
+      });
+
+      fetchTodayFixtures();
+    </script>
+  </body>
+</html>
