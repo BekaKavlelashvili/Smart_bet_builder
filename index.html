@@ -15,6 +15,15 @@
                 500: "#7c3aed",
                 600: "#6d28d9"
               }
+            },
+            animation: {
+              "fade-in": "fadeIn 0.3s ease-in-out"
+            },
+            keyframes: {
+              fadeIn: {
+                "0%": { opacity: "0", transform: "translate(-50%, -10px)" },
+                "100%": { opacity: "1", transform: "translate(-50%, 0)" }
+              }
             }
           }
         }
@@ -22,19 +31,59 @@
     </script>
   </head>
   <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
-    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <header class="mb-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur">
-        <p class="text-xs uppercase tracking-[0.2em] text-brand-500">Smart Bet Builder</p>
-        <h1 class="mt-2 text-2xl font-bold sm:text-3xl">One-Click Smart Dashboard</h1>
-        <p class="mt-2 text-sm text-slate-400 sm:text-base">Live and upcoming football fixtures for today. No setup, just open and analyze.</p>
-      </header>
+    <div class="flex flex-col lg:flex-row lg:gap-6">
+      <main class="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <header class="mb-8 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur">
+          <p class="text-xs uppercase tracking-[0.2em] text-brand-500">Smart Bet Builder</p>
+          <h1 class="mt-2 text-2xl font-bold sm:text-3xl">One-Click Smart Dashboard</h1>
+          <p class="mt-2 text-sm text-slate-400 sm:text-base">Live and upcoming football fixtures for today. No setup, just open and analyze.</p>
+        </header>
 
-      <section aria-live="polite" id="statusMessage" class="mb-6 hidden rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm"></section>
+        <section aria-live="polite" id="statusMessage" class="mb-6 hidden rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm"></section>
 
-      <section id="fixturesGrid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"></section>
+        <section id="fixturesGrid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"></section>
 
-      <section id="analyticsResults" class="mt-6 hidden"></section>
-    </main>
+        <section id="analyticsResults" class="mt-6 hidden"></section>
+      </main>
+
+      <!-- Live Bet Ticket Planner -->
+      <aside id="betTicketPlanner" class="lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-96 lg:flex-shrink-0 lg:px-4 lg:py-8 fixed bottom-0 left-0 right-0 lg:relative border-t lg:border-t-0 border-slate-800 bg-slate-950 lg:bg-transparent z-50">
+        <div class="rounded-t-2xl lg:rounded-2xl border border-slate-800 bg-slate-900/95 backdrop-blur shadow-2xl shadow-black/40 flex flex-col max-h-[70vh] lg:max-h-full lg:h-full">
+          <div class="p-5 border-b border-slate-800">
+            <h2 class="text-lg font-bold">Live Bet Ticket Planner</h2>
+            <p class="text-xs text-slate-400 mt-1">Build your betting slip</p>
+          </div>
+
+          <div id="betSuggestions" class="p-4 border-b border-slate-800 hidden">
+            <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">Suggested Bets</p>
+            <div id="suggestionsContainer" class="space-y-2"></div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-4">
+            <div id="betTicketContent" class="space-y-2 min-h-[100px]">
+              <p class="text-center text-sm text-slate-500 py-8">No bets added yet. Run analytics and add suggestions!</p>
+            </div>
+          </div>
+
+          <div class="p-4 border-t border-slate-800 space-y-3">
+            <div class="text-xs text-slate-400 text-center">
+              <span id="betCount">0</span> selection(s)
+            </div>
+            <button id="copyTicketButton" disabled class="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-600">
+              Copy Ticket to Clipboard
+            </button>
+            <button id="clearTicketButton" class="w-full rounded-xl bg-slate-800 px-4 py-2 text-xs font-medium transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-950">
+              Clear All
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Clipboard Confirmation Popup -->
+    <div id="clipboardPopup" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-xl bg-emerald-500 text-white font-semibold shadow-2xl shadow-emerald-500/50 animate-fade-in">
+      ✓ Copied to Clipboard!
+    </div>
 
     <script>
       const CONFIG = {
@@ -46,8 +95,18 @@
       const fixturesGrid = document.getElementById("fixturesGrid");
       const analyticsResults = document.getElementById("analyticsResults");
       const statusMessage = document.getElementById("statusMessage");
+      const betSuggestions = document.getElementById("betSuggestions");
+      const suggestionsContainer = document.getElementById("suggestionsContainer");
+      const betTicketContent = document.getElementById("betTicketContent");
+      const betCount = document.getElementById("betCount");
+      const copyTicketButton = document.getElementById("copyTicketButton");
+      const clearTicketButton = document.getElementById("clearTicketButton");
+      const clipboardPopup = document.getElementById("clipboardPopup");
       const FALLBACK_LOGO =
         "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='24' fill='%231e293b'/%3E%3Cpath d='M24 13l9 4v6c0 6-4 10.5-9 12-5-1.5-9-6-9-12v-6l9-4z' fill='%2364758b'/%3E%3C/svg%3E";
+
+      // Bet ticket state management
+      let betTicketItems = [];
 
       const LIVE_OR_UPCOMING = new Set([
         "NS",
@@ -267,6 +326,144 @@
         return data.response || null;
       }
 
+      // ── Bet Ticket Management ──────────────────────────────────────────────
+
+      function updateBetTicketDisplay() {
+        if (betTicketItems.length === 0) {
+          betTicketContent.innerHTML = '<p class="text-center text-sm text-slate-500 py-8">No bets added yet. Run analytics and add suggestions!</p>';
+          copyTicketButton.disabled = true;
+        } else {
+          betTicketContent.innerHTML = betTicketItems.map((item, index) => `
+            <div class="rounded-lg border border-slate-700 bg-slate-800/60 p-3 text-sm flex items-start justify-between gap-2">
+              <span class="flex-1">${escapeHtml(item)}</span>
+              <button
+                class="remove-bet text-slate-400 hover:text-red-400 transition flex-shrink-0"
+                data-index="${index}"
+                aria-label="Remove bet">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          `).join('');
+          copyTicketButton.disabled = false;
+        }
+        betCount.textContent = betTicketItems.length;
+      }
+
+      function addBetToTicket(betText) {
+        if (!betTicketItems.includes(betText)) {
+          betTicketItems.push(betText);
+          updateBetTicketDisplay();
+        }
+      }
+
+      function removeBetFromTicket(index) {
+        betTicketItems.splice(index, 1);
+        updateBetTicketDisplay();
+      }
+
+      function clearBetTicket() {
+        betTicketItems = [];
+        updateBetTicketDisplay();
+      }
+
+      function generateSuggestions(homeName, awayName, combined, homeAvg, awayAvg) {
+        const suggestions = [];
+
+        // Match Over 3.5 Cards suggestion
+        if (combined > 3.5) {
+          suggestions.push({
+            label: "Add Match Over 3.5 Cards",
+            bet: `${homeName} vs ${awayName} — Over 3.5 Match Cards`
+          });
+        }
+
+        // Match Over 2.5 Cards suggestion (for moderate)
+        if (combined >= MODERATE_CARD_THRESHOLD && combined <= HIGH_CARD_THRESHOLD) {
+          suggestions.push({
+            label: "Add Match Over 2.5 Cards",
+            bet: `${homeName} vs ${awayName} — Over 2.5 Match Cards`
+          });
+        }
+
+        // Home Team Over 1.5 Cards
+        if (homeAvg > 1.5) {
+          suggestions.push({
+            label: `Add ${homeName} Over 1.5 Cards`,
+            bet: `${homeName} vs ${awayName} — ${homeName} Over 1.5 Cards`
+          });
+        }
+
+        // Away Team Over 1.5 Cards
+        if (awayAvg > 1.5) {
+          suggestions.push({
+            label: `Add ${awayName} Over 1.5 Cards`,
+            bet: `${homeName} vs ${awayName} — ${awayName} Over 1.5 Cards`
+          });
+        }
+
+        return suggestions;
+      }
+
+      function displaySuggestions(suggestions) {
+        if (suggestions.length === 0) {
+          betSuggestions.classList.add("hidden");
+          return;
+        }
+
+        betSuggestions.classList.remove("hidden");
+        suggestionsContainer.innerHTML = suggestions.map(suggestion => `
+          <button
+            class="add-suggestion w-full text-left rounded-lg border border-slate-700 bg-slate-800/40 px-4 py-2.5 text-sm transition hover:border-brand-500/60 hover:bg-slate-800/80 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+            data-bet="${escapeHtml(suggestion.bet)}">
+            <span class="text-brand-400">+</span> ${escapeHtml(suggestion.label)}
+          </button>
+        `).join('');
+      }
+
+      async function copyTicketToClipboard() {
+        if (betTicketItems.length === 0) return;
+
+        const ticketText = "=== BET TICKET ===\n\n" + betTicketItems.map((item, index) => `${index + 1}. ${item}`).join('\n') + "\n\n=== END OF TICKET ===";
+
+        try {
+          await navigator.clipboard.writeText(ticketText);
+
+          // Show confirmation popup
+          clipboardPopup.classList.remove("hidden");
+
+          // Auto-hide after 2 seconds
+          setTimeout(() => {
+            clipboardPopup.classList.add("hidden");
+          }, 2000);
+        } catch (error) {
+          setStatus("Failed to copy to clipboard. Please try again.", "error");
+        }
+      }
+
+      // Event listeners for bet ticket
+      betTicketContent.addEventListener("click", (event) => {
+        const button = event.target.closest(".remove-bet");
+        if (!button) return;
+        const index = Number(button.getAttribute("data-index"));
+        if (Number.isFinite(index)) {
+          removeBetFromTicket(index);
+        }
+      });
+
+      suggestionsContainer.addEventListener("click", (event) => {
+        const button = event.target.closest(".add-suggestion");
+        if (!button) return;
+        const betText = button.getAttribute("data-bet");
+        if (betText) {
+          addBetToTicket(betText);
+        }
+      });
+
+      copyTicketButton.addEventListener("click", copyTicketToClipboard);
+      clearTicketButton.addEventListener("click", clearBetTicket);
+
       async function runCardAnalytics(button, homeId, awayId, leagueId, season, homeName, awayName) {
         const originalText = button.textContent.trim();
         button.disabled = true;
@@ -327,6 +524,10 @@
               </div>
             </div>
           `;
+
+          // Generate and display betting suggestions
+          const suggestions = generateSuggestions(homeName, awayName, combined, homeAvg, awayAvg);
+          displaySuggestions(suggestions);
         } catch (error) {
           analyticsResults.innerHTML = `<p class="rounded-xl border border-red-700 bg-slate-900/90 px-4 py-3 text-sm text-red-300">Could not load team statistics: ${escapeHtml(error.message)}</p>`;
         } finally {
